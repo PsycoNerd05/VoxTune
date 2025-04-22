@@ -5,25 +5,45 @@ All files are uploaded together in here but while uploading this project to your
 Your project structure should look something like this:
 
 VoxTune
+
 ├── core
+
 │   ├── audio_player.py
+
 │   ├── favorites_manager.py
+
 │   ├── library_manager.py
+
 │   ├── playlist_manager.py
+
 │   └── utils.py
+
 ├── data
+
 │   └── app_data.json
+
 ├── ui
+
 │   ├── albums_page.py
+
 │   ├── components.py
+
 │   ├── favorites_page.py
+
 │   ├── main_window.py
+
 │   ├── playlists_page.py
+
 │   └── theme.py
+
 ├── voice
+
 │   ├── commands.py
+
 │   └── voice_assistant.py
+
 ├── main.py
+
 └── requirements.txt
 
 VoxTune is the main project folder, core,data,ui,voice are the respective packages for their respective code files as given.
