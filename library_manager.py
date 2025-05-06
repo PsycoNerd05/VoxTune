@@ -5,8 +5,8 @@ import datetime
 class LibraryManager:
     def __init__(self, music_directory):
         self.music_directory = music_directory
-        self.songs = {} # {filepath: {title, artist, album, release_date, filepath}}
-        self.albums = {} # {artist: {album_name: [filepaths]}}
+        self.songs = {os.path.expanduser("~/Music")} # {filepath: {title, artist, album, release_date, filepath}}
+        self.albums = {os.path.expanduser("~/Music")} # {artist: {album_name: [filepaths]}}
 
     def scan_library(self):
         self.songs = {}
