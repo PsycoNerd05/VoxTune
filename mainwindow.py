@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QListWidget, QLabel, QPushButton, QSpacerItem,
                              QSizePolicy, QStackedWidget, QInputDialog,
                              QMessageBox, QToolBar, QAction, QListWidgetItem)
-from PyQt5.QtGui import QPixmap, QIcon, QColor, QPalette, QPainter
+from PyQt5.QtGui import QPixmap, QIcon, QColor, QPalette, QPainter, QFont
 from PyQt5.QtCore import Qt, QTimer, QSize
 
 from ui.playlists_page import PlaylistsPage
@@ -13,7 +13,9 @@ from core.audio_player import AudioPlayer
 from core.library_manager import LibraryManager
 from core.playlist_manager import PlaylistManager
 from core.favorites_manager import FavoritesManager
+from voice.commands import CommandHandler
 from voice.voice_assistant import VoiceAssistant
+import pygame
 
 class MainWindow(QMainWindow):
     def __init__(self, library_manager, playlist_manager, audio_player, favorites_manager):
@@ -22,7 +24,16 @@ class MainWindow(QMainWindow):
         self.playlist_manager = playlist_manager
         self.audio_player = audio_player
         self.favorites_manager = favorites_manager
-        self.voice_assistant = VoiceAssistant("VoxTune", library_manager, playlist_manager, audio_player, self)
+
+        # Initialize CommandHandler first
+        self.commands_handler = CommandHandler(
+            library_manager, playlist_manager, audio_player, self
+        )
+
+        # Pass the CommandHandler instance to VoiceAssistant
+        self.voice_assistant = VoiceAssistant(
+            "tunes", library_manager, playlist_manager, audio_player, self, self.commands_handler
+        )
 
         self.setWindowTitle("VoxTune")
         self.setGeometry(100, 100, 800, 600)
@@ -52,14 +63,34 @@ class MainWindow(QMainWindow):
         self._setup_playback_controls()
         self.content_layout.addWidget(self.playback_controls_widget)
 
-        self.layout.addWidget(self.content_widget) # Ensure content widget is added to the main layout
+        self.layout.addWidget(self.content_widget)  # Ensure content widget is added to the main layout
 
         self._apply_theme()
+
+        # Start voice assistant
         self.voice_assistant.start()
 
     def closeEvent(self, event):
         self.voice_assistant.stop()
+        pygame.quit()
         super().closeEvent(event)
+
+    def process_command(self, command):
+        """
+        Handle a command detected by the VoiceAssistant.
+
+        :param command: Command string detected by the VoiceAssistant.
+        """
+        print(f"Command received: {command}")
+
+        # Delegate the command handling to the CommandHandler instance
+        try:
+            if hasattr(self.commands_handler, 'handle_command'):
+                self.commands_handler.handle_command(command)
+            else:
+                print(f"'CommandHandler' does not have a method 'handle_command'. Unable to process: {command}")
+        except Exception as e:
+            print(f"Error while processing command '{command}': {e}")
 
     def _play_selected_song_from_list(self, song):
         self.audio_player.load(song['filepath'])
@@ -78,7 +109,7 @@ class MainWindow(QMainWindow):
 
         # Make the text bigger and bold (programmatically)
         font = self.main_button.font()
-        font.setPointSize(16)  # Increased font size
+        font.setPointSize(15)  # Increased font size
         font.setBold(True)
         self.main_button.setFont(font)
         self.playlists_button.setFont(font)
@@ -94,30 +125,38 @@ class MainWindow(QMainWindow):
         self.side_nav_layout.addWidget(self.playlists_button)
         self.side_nav_layout.addWidget(self.albums_button)
         self.side_nav_layout.addWidget(self.favorites_button)
-        self.side_nav.setFixedWidth(250) # Increased width further for better spacing
+        self.side_nav.setFixedWidth(200) # Increased width further for better spacing
 
     def _setup_main_page(self):
         self.main_page_widget = QWidget()
-        self.main_page_layout = QVBoxLayout(self.main_page_widget)
-
-        self.app_name_label = QLabel("VoxTune")
-        self.app_name_label.setAlignment(Qt.AlignCenter)
-        self.app_name_label.setStyleSheet("font-size: 24px; color: #00FF00;")
-        self.main_page_layout.addWidget(self.app_name_label)
-        self.app_name_timer = QTimer(self)
-        self.app_name_timer.timeout.connect(self._hide_app_name)
-        self.app_name_timer.start(5000)
-        self.initial_display = True
+        self.main_page_layout = QHBoxLayout(self.main_page_widget) # Use QHBoxLayout here
 
         self.virtual_playlist_widget = QListWidget()
         self._populate_virtual_playlist()
         self.main_page_layout.addWidget(self.virtual_playlist_widget)
-        self.virtual_playlist_widget.itemDoubleClicked.connect(self._play_selected_song)
+        self.virtual_playlist_widget.setFixedWidth(600) # Set a fixed width
+
+        self.main_page_spacer = QWidget()
+        self.main_page_layout.addWidget(self.main_page_spacer)
+        self.main_page_layout.setStretchFactor(self.virtual_playlist_widget, 0) # Don't stretch playlist
+        self.main_page_layout.setStretchFactor(self.main_page_spacer, 1) # Stretch the remaining space
+
+        self.app_name_label = QLabel("VoxTune")
+        self.app_name_label.setAlignment(Qt.AlignCenter)
+        self.app_name_label.setStyleSheet("font-size: 24px; color: #00FF00;")
+        self.main_page_layout.addWidget(self.app_name_label) # Add it to the QHBoxLayout
+        self.app_name_timer = QTimer(self)
+        self.app_name_timer.timeout.connect(self._hide_app_name)
+        self.app_name_timer.start(5000)
+        self.initial_display = True
+        self.app_name_label.hide() # Hide it initially as per your timer logic
+        self.main_page_layout.setStretchFactor(self.app_name_label, 0) # Ensure app name doesn't stretch
 
     def _hide_app_name(self):
-        self.app_name_label.hide()
-        self.app_name_timer.stop()
-        self.initial_display = False
+        if hasattr(self, 'app_name_label'):
+            self.app_name_label.hide()
+            self.app_name_timer.stop()
+            self.initial_display = False
 
     def _populate_virtual_playlist(self):
         self.virtual_playlist_widget.clear()
@@ -258,24 +297,29 @@ class MainWindow(QMainWindow):
 
     def _apply_theme(self):
         palette = self.palette()
-        palette.setColor(QPalette.Window, QColor(50, 0, 70)) # Dark Purple
+        palette.setColor(QPalette.Window, QColor(50, 0, 70))  # Dark Purple
         palette.setColor(QPalette.WindowText, Qt.white)
         palette.setColor(QPalette.Button, QColor(50, 0, 70))
         palette.setColor(QPalette.ButtonText, Qt.white)
-        palette.setColor(QPalette.Highlight, QColor(0, 255, 0)) # Neon Green
+        palette.setColor(QPalette.Highlight, QColor(0, 255, 0))  # Neon Green
         palette.setColor(QPalette.HighlightedText, Qt.black)
         self.setPalette(palette)
-        self.side_nav.setStyleSheet(f"background-color: #320046; color: white;") # Removed font-size from here, set programmatically
+
+        self.side_nav.setStyleSheet("background-color: #320046; color: white;")
         buttons = self.side_nav.findChildren(QPushButton)
         for button in buttons:
-            button.setStyleSheet("QPushButton { color: white; background-color: #320046; border: none; padding: 12px; text-align: left; }" # Increased padding
-                                 "QPushButton:hover { background-color: #460060; }"
-                                 "QPushButton:pressed { background-color: #00FF00; color: black; }")
+            button.setStyleSheet(
+                "QPushButton { color: white; background-color: #320046; border: none; padding: 12px; text-align: left; }"
+                "QPushButton:hover { background-color: #460060; }"
+                "QPushButton:pressed { background-color: #00FF00; color: black; }"
+            )
+
         self.playback_controls_widget.setStyleSheet("background-color: #320046; color: white; padding: 10px;")
         playback_buttons = self.playback_controls_widget.findChildren(QPushButton)
         for button in playback_buttons:
-            button.setStyleSheet(f"""
-                QPushButton {{
+            button.setStyleSheet(
+                """
+                QPushButton {
                     background-color: transparent;
                     border: 1px solid #00FF00; /* Neon Green Border */
                     color: #00FF00; /* Neon Green Text */
@@ -283,19 +327,63 @@ class MainWindow(QMainWindow):
                     border-radius: 3px;
                     min-width: 60px; /* Increased min-width to accommodate text */
                     text-align: center; /* Center the text and icon */
-                }}
-                QPushButton:hover {{
+                }
+                QPushButton:hover {
                     background-color: #460060; /* Darker purple on hover */
                     color: #00CC00; /* Slightly darker neon green on hover */
                     border-color: #00CC00;
-                }}
-                QPushButton:pressed {{
+                }
+                QPushButton:pressed {
                     background-color: #00FF00;
                     color: black;
                     border-color: black;
-                }}
-            """)
+                }
+                """
+            )
+
         if hasattr(self, 'virtual_playlist_widget'):
-            self.virtual_playlist_widget.setStyleSheet("QListWidget { background-color: #1E0028; color: white; border: none; font-size: 12px; }"
-                                                       "QListWidget::item:selected { background-color: #460060; }")
-        self.content_widget.setStyleSheet("background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, stop:0 #320046, stop:1 #000000);") # Gradient
+            self.virtual_playlist_widget.setStyleSheet(
+                """
+                QListWidget {
+                    background-color: #28003C;
+                    color: white;
+                    border: none;
+                    outline: none;
+                }
+                QListWidget::item {
+                    padding: 10px;
+                }
+                QListWidget::item:selected {
+                    background-color: #460060;
+                }
+                QListWidget::item:hover {
+                    background-color: #320046;
+                }
+                QScrollBar:vertical {
+                    background: #28003C;
+                    width: 10px;
+                    margin: 0px 0px 0px 0px;
+                }
+                QScrollBar::handle:vertical {
+                    background: #460060;
+                    min-height: 20px;
+                    border-radius: 5px;
+                }
+                QScrollBar::add-line:vertical {
+                    border: none;
+                    background: none;
+                }
+                QScrollBar::sub-line:vertical {
+                    border: none;
+                    background: none;
+                }
+                """
+            )
+
+        # Apply theme to other widgets as needed
+        if hasattr(self, 'playlists_page'):
+            self.playlists_page.apply_theme()
+        if hasattr(self, 'albums_page'):
+            self.albums_page.apply_theme()
+        if hasattr(self, 'favorites_page'):
+            self.favorites_page.apply_theme()
