@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QGridLayout, QLabel,
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt
 
+
 class AlbumsPage(QWidget):
     def __init__(self, library_manager, parent=None):
         super().__init__(parent)
@@ -73,3 +74,14 @@ class AlbumsPage(QWidget):
         # You could add a placeholder for album art here if you have that functionality
 
         return album_frame
+
+    def apply_theme(self):
+        """
+        Apply consistent theming to the AlbumsPage.
+        """
+        # Modify the main background and album grid style
+        self.setStyleSheet("background-color: #28003C; color: white;")
+        for i in range(self.grid_layout.count()):
+            widget = self.grid_layout.itemAt(i).widget()
+            if isinstance(widget, QFrame):
+                widget.setStyleSheet("background-color: #320046; border-radius: 5px; padding: 10px;")
