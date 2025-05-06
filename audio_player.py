@@ -1,3 +1,4 @@
+import mutagen
 import pygame
 
 class AudioPlayer:
@@ -17,8 +18,11 @@ class AudioPlayer:
 
     def play(self):
         if self.current_track:
-            pygame.mixer.music.play()
-            self.paused = False
+            try:
+                pygame.mixer.music.play()
+                self.paused = False
+            except Exception as e:
+                print(f"Error while trying to play: {e}")
 
     def pause(self):
         if pygame.mixer.music.get_busy():
