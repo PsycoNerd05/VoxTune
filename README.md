@@ -53,4 +53,9 @@ once the requirements file is copied in your directory, simply head towards your
 pip install -r requirements.txt
 
 keep the app_data.json file empty as all your songa data will be automatically pasted there.
-The project is still in progress so stay tuned for any more updates.( if any file isn't yet uploaded, it will be uploaded soon)
+
+The app uses speech recognition to support it's voice automation process.
+A few basic commands are defined in the commands.py file, feel free to add more to you're version.
+The voice automation process depends on a wake word detection model to trigger its usage whenever needed.
+The wake word for VoxTune is "tunes".
+You need to first say tunes in order to alert the system for its working and then after a brief second or so, as soon as the wake word is detected, you need to speak out your command. You can observe the output console to look if the wake word is detected. 
